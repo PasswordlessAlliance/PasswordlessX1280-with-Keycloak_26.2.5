@@ -15,7 +15,10 @@ import {
 } from "@patternfly/react-core";
 import { BarsIcon } from "@patternfly/react-icons";
 import { TFunction } from "i18next";
-import Keycloak, { type KeycloakTokenParsed } from "keycloak-js";
+//import Keycloak, { type KeycloakTokenParsed } from "keycloak-js";
+//import CustomKeycloak, { type KeycloakTokenParsed } from "../../../../libs/ui-shared/src/autootp/Keycloak-js-autootp.js";
+import type { KeycloakTokenParsed } from "keycloak-js";
+import CustomKeycloak from "../autootp/Keycloak-js-autootp.js";
 import { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { DefaultAvatar } from "./DefaultAvatar";
@@ -43,7 +46,7 @@ function loggedInUserName(
 type BrandLogo = MastheadBrandProps;
 
 type KeycloakMastheadProps = MastheadMainProps & {
-  keycloak: Keycloak;
+  keycloak: CustomKeycloak;
   brand: BrandLogo;
   avatar?: AvatarProps;
   features?: {

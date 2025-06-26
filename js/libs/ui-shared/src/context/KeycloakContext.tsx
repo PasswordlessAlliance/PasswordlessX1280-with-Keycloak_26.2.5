@@ -1,5 +1,7 @@
 import { Spinner } from "@patternfly/react-core";
-import Keycloak from "keycloak-js";
+//import Keycloak from "keycloak-js";
+//import CustomKeycloak from "/js/libs/ui-shared/src/autootp/Keycloak-js-autootp.js";
+import CustomKeycloak from "../autootp/Keycloak-js-autootp.js";
 import {
   PropsWithChildren,
   createContext,
@@ -16,7 +18,7 @@ import { BaseEnvironment } from "./environment";
 
 export type KeycloakContext<T extends BaseEnvironment = BaseEnvironment> =
   KeycloakContextProps<T> & {
-    keycloak: Keycloak;
+    keycloak: CustomKeycloak;
   };
 
 const createKeycloakEnvContext = <T extends BaseEnvironment>() =>
@@ -48,7 +50,7 @@ export const KeycloakProvider = <T extends BaseEnvironment>({
   const [init, setInit] = useState(false);
   const [error, setError] = useState<unknown>();
   const keycloak = useMemo(() => {
-    const keycloak = new Keycloak({
+    const keycloak = new CustomKeycloak({
       url: environment.serverBaseUrl,
       realm: environment.realm,
       clientId: environment.clientId,

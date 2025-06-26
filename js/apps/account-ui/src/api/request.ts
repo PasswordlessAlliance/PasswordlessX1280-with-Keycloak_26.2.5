@@ -2,7 +2,9 @@ import {
   KeycloakContext,
   type BaseEnvironment,
 } from "@keycloak/keycloak-ui-shared";
-import Keycloak from "keycloak-js";
+//import Keycloak from "keycloak-js";
+//import Keycloak from "/libs/ui-shared/src/autootp/Keycloak-js-autootp.js";
+import CustomKeycloak from "../../../../libs/ui-shared/src/autootp/Keycloak-js-autootp.js";
 
 import { joinPath } from "../utils/joinPath";
 import { CONTENT_TYPE_HEADER, CONTENT_TYPE_JSON } from "./constants";
@@ -62,7 +64,7 @@ export const url = (environment: BaseEnvironment, path: string) =>
     ),
   );
 
-export const token = (keycloak: Keycloak) =>
+export const token = (keycloak: CustomKeycloak) =>
   async function getAccessToken() {
     try {
       await keycloak.updateToken(5);

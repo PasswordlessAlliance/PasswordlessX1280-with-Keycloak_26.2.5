@@ -3,11 +3,13 @@ import {
   createNamedContext,
   useRequiredContext,
 } from "@keycloak/keycloak-ui-shared";
-import type Keycloak from "keycloak-js";
+//import type Keycloak from "keycloak-js";
+//import type CustomKeycloak from "/libs/ui-shared/src/autootp/Keycloak-js-autootp.js";
+import CustomKeycloak from "../../../libs/ui-shared/src/autootp/Keycloak-js-autootp.js";
 import type { Environment } from "./environment";
 
 export type AdminClientProps = {
-  keycloak: Keycloak;
+  keycloak: CustomKeycloak;
   adminClient: KeycloakAdminClient;
 };
 
@@ -18,7 +20,7 @@ export const AdminClientContext = createNamedContext<
 export const useAdminClient = () => useRequiredContext(AdminClientContext);
 
 export async function initAdminClient(
-  keycloak: Keycloak,
+  keycloak: CustomKeycloak,
   environment: Environment,
 ) {
   const adminClient = new KeycloakAdminClient();
