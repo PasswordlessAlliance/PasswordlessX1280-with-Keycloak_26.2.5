@@ -26,6 +26,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
+import org.keycloak.models.AuthenticationFlowModel;
+
 /**
  * @author <a href="mailto:sthorger@redhat.com">Stian Thorgersen</a>
  */
@@ -35,6 +37,64 @@ public class RealmBean {
 
     public RealmBean(RealmModel realmModel) {
         realm = realmModel;
+    }
+    
+    public String getAttributeautootpAppSettingDomain() {
+        return realm.getAttribute("autootpAppSettingDomain");
+    }
+
+    public String getAttributeautootpAppSettingEmail() {
+        return realm.getAttribute("autootpAppSettingEmail");
+    }
+    
+    public String getAttributeautootpAppSettingIpAddress() {
+        return realm.getAttribute("autootpAppSettingIpAddress");
+    }
+    
+    public String getAttributeautootpAppSettingName() {
+        return realm.getAttribute("autootpAppSettingName");
+    }
+    
+    public String getAttributeautootpAppSettingProxyServerDomain() {
+        return realm.getAttribute("autootpAppSettingProxyServerDomain");
+    }
+    
+    public String getAttributeautootpAuthenticationStep() {
+        return realm.getAttribute("autootpAuthenticationStep");
+    }
+    
+    public String getAttributeautootpReturnDomainValidationToken() {
+        return realm.getAttribute("autootpReturnDomainValidationToken");
+    }
+    
+    public String getAttributeautootpReturnServerProgress() {
+        return realm.getAttribute("autootpReturnServerProgress");
+    }
+    
+    public String getAttributeautootpServerSettingAppServerKey() {
+        return realm.getAttribute("autootpServerSettingAppServerKey");
+    }
+    
+    public String getAttributeautootpServerSettingAuthServerDomain() {
+        return realm.getAttribute("autootpServerSettingAuthServerDomain");
+    }
+    
+    public String getAttributeautootpAppSettingPublickey() {
+        return realm.getAttribute("autootpAppSettingPublickey");
+    }
+    
+    public String getAttributeautootpAppSettingPrivatekey() {
+        return realm.getAttribute("autootpAppSettingPrivatekey");
+    }
+
+    public String getBrowserFlowId() {
+        AuthenticationFlowModel flowModel = realm.getBrowserFlow();
+        return flowModel.getId();
+    }
+
+    public String getBrowserFlowAlias() {
+        AuthenticationFlowModel flowModel = realm.getBrowserFlow();
+        return flowModel.getAlias();
     }
 
     public String getName() {

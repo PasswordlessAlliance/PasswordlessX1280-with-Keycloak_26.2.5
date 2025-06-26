@@ -45,6 +45,7 @@ public class AuthorizeClientUtil {
 
     public static ClientAuthResult authorizeClient(KeycloakSession session, EventBuilder event, Cors cors) {
         AuthenticationProcessor processor = getAuthenticationProcessor(session, event);
+        processor.setClient(session.getContext().getClient());
 
         Response response = processor.authenticateClient();
         if (response != null) {

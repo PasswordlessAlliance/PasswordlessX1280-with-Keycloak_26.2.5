@@ -42,6 +42,7 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.models.AuthenticationFlowModel;
 import org.keycloak.protocol.AuthorizationEndpointBase;
 import org.keycloak.services.Urls;
 import org.keycloak.services.messages.Messages;
@@ -170,14 +171,33 @@ public class VerifyEmail implements RequiredActionProvider, RequiredActionFactor
                 authSession.getClient().getClientId(), authSession.getTabId(), AuthenticationProcessor.getClientData(session, authSession));
         String link = builder.build(realm.getName()).toString();
         long expirationInMinutes = TimeUnit.SECONDS.toMinutes(validityInSecs);
+        
+        // AutoOTP - client.baseUrl
+        AuthenticationFlowModel flowModel = realm.getBrowserFlow();
+        String dbBrowserFlowAlias = flowModel.getAlias();
+        
+        if(dbBrowserFlowAlias == null)
+            dbBrowserFlowAlias = "";
+        
+        if(dbBrowserFlowAlias.toUpperCase().indexOf("AUTOOTP") > -1 || dbBrowserFlowAlias.toUpperCase().indexOf("PASSWORDLESS") > -1 || dbBrowserFlowAlias.toUpperCase().indexOf("X1280") > -1)
+            dbBrowserFlowAlias = "AUTOOTP";
 
         try {
-            session
-              .getProvider(EmailTemplateProvider.class)
-              .setAuthenticationSession(authSession)
-              .setRealm(realm)
-              .setUser(user)
-              .sendVerifyEmail(link, expirationInMinutes);
+        	if(dbBrowserFlowAlias.equals("AUTOOTP"))
+                session
+                  .getProvider(EmailTemplateProvider.class)
+                  .setAuthenticationSession(authSession)
+                  .setRealm(realm)
+                  .setUser(user, authSession.getClient())
+                  .sendVerifyEmail(link, expirationInMinutes);
+            else
+	        	session
+	              .getProvider(EmailTemplateProvider.class)
+	              .setAuthenticationSession(authSession)
+	              .setRealm(realm)
+	              .setUser(user)
+	              .sendVerifyEmail(link, expirationInMinutes);
+            
             event.success();
             return context.form().createResponse(UserModel.RequiredAction.VERIFY_EMAIL);
         } catch (EmailException e) {

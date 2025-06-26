@@ -18,6 +18,7 @@
 package org.keycloak.email;
 
 import org.keycloak.events.Event;
+import org.keycloak.models.ClientModel;
 import org.keycloak.models.OrganizationModel;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
@@ -39,6 +40,8 @@ public interface EmailTemplateProvider extends Provider {
     EmailTemplateProvider setRealm(RealmModel realm);
 
     EmailTemplateProvider setUser(UserModel user);
+    
+    EmailTemplateProvider setUser(UserModel user, ClientModel client);
 
     EmailTemplateProvider setAttribute(String name, Object value);
 
@@ -77,6 +80,8 @@ public interface EmailTemplateProvider extends Provider {
     void sendExecuteActions(String link, long expirationInMinutes) throws EmailException;
 
     void sendVerifyEmail(String link, long expirationInMinutes) throws EmailException;
+    
+    void sendAutoOTPEmail(String link, String username, String dbSecretKey, String dbAuthDomain, long expirationInMinutes, String addr, String baseUrl, String clientId, String clientClientId) throws EmailException;
 
     void sendOrgInviteEmail(OrganizationModel organization, String link, long expirationInMinutes) throws EmailException;
 

@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { KeycloakSpinner } from "@keycloak/keycloak-ui-shared";
 import { useRealm } from "../../context/realm-context/RealmContext";
 import { CibaPolicy } from "./CibaPolicy";
+import { AutoOTPPolicy } from "./AutoOTPPolicy";
 import { OtpPolicy } from "./OtpPolicy";
 import { PasswordPolicy } from "./PasswordPolicy";
 import { WebauthnPolicy } from "./WebauthnPolicy";
@@ -33,9 +34,16 @@ export const Policies = () => {
         <PasswordPolicy realm={realm} realmUpdated={refresh} />
       </Tab>
       <Tab
+        id="autootpPolicy"
+        eventKey={2}
+        title={<TabTitleText>{t("autootpPolicy")}</TabTitleText>}
+      >
+        <AutoOTPPolicy realm={realm} realmUpdated={refresh} />
+      </Tab>
+      <Tab
         id="otpPolicy"
         data-testid="otpPolicy"
-        eventKey={2}
+        eventKey={3}
         title={<TabTitleText>{t("otpPolicy")}</TabTitleText>}
       >
         <OtpPolicy realm={realm} realmUpdated={refresh} />
@@ -43,7 +51,7 @@ export const Policies = () => {
       <Tab
         id="webauthnPolicy"
         data-testid="webauthnPolicy"
-        eventKey={3}
+        eventKey={4}
         title={<TabTitleText>{t("webauthnPolicy")}</TabTitleText>}
       >
         <WebauthnPolicy realm={realm} realmUpdated={refresh} />
@@ -51,14 +59,14 @@ export const Policies = () => {
       <Tab
         id="webauthnPasswordlessPolicy"
         data-testid="webauthnPasswordlessPolicy"
-        eventKey={4}
+        eventKey={5}
         title={<TabTitleText>{t("webauthnPasswordlessPolicy")}</TabTitleText>}
       >
         <WebauthnPolicy realm={realm} realmUpdated={refresh} isPasswordLess />
       </Tab>
       <Tab
         data-testid="tab-ciba-policy"
-        eventKey={5}
+        eventKey={6}
         title={<TabTitleText>{t("cibaPolicy")}</TabTitleText>}
       >
         <CibaPolicy realm={realm} realmUpdated={refresh} />

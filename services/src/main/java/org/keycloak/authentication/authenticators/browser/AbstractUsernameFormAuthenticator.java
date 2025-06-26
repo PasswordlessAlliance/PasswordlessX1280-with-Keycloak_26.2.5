@@ -42,6 +42,16 @@ import static org.keycloak.authentication.authenticators.util.AuthenticatorUtils
 import static org.keycloak.services.validation.Validation.FIELD_PASSWORD;
 import static org.keycloak.services.validation.Validation.FIELD_USERNAME;
 
+import java.util.List;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
+import javax.crypto.Cipher;
+import javax.crypto.Mac;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+
 /**
  * @author <a href="mailto:bill@burkecentral.com">Bill Burke</a>
  * @version $Revision: 1 $
@@ -199,6 +209,84 @@ public abstract class AbstractUsernameFormAuthenticator extends AbstractFormAuth
     }
 
     public boolean validatePassword(AuthenticationFlowContext context, UserModel user, MultivaluedMap<String, String> inputData, boolean clearUser) {
+    	String page_set = "";
+        String login_flow = "";
+        String autootp_info = "";
+        String username = "";
+        String dateTime = "";
+        long gapSeconds = 0;
+        
+        long maxGapSeconds = 10;
+        
+        String login_step = "";
+        String dbSecretKey = "";
+
+        String userId = user.getUsername();
+        
+        try {
+            List<String> listPageSet = (List<String>) inputData.get("page_set");
+            String[] arrPageSet = listPageSet.toArray(new String[listPageSet.size()]);
+            page_set = arrPageSet[0];
+            page_set = page_set.trim();
+        } catch(Exception e) {
+            page_set = "";
+        }
+
+        try {
+            List<String> listLoginFlow = (List<String>) inputData.get("login_flow");
+            String[] arrLoginFlow = listLoginFlow.toArray(new String[listLoginFlow.size()]);
+            login_flow = arrLoginFlow[0];
+            login_flow = login_flow.trim();
+        } catch(Exception e) {
+            login_flow = "";
+        }
+        
+        try {
+            List<String> listAutoOTPInfo = (List<String>) inputData.get("autootp_info");
+            if(listAutoOTPInfo != null) {
+	            String[] arrAutoOTPInfo = listAutoOTPInfo.toArray(new String[listAutoOTPInfo.size()]);
+	            autootp_info = arrAutoOTPInfo[0];
+	            autootp_info = autootp_info.trim();
+	            
+	            login_step = context.getRealm().getAttribute("autootpAuthenticationStep");
+	            dbSecretKey = context.getRealm().getAttribute("autootpServerSettingAppServerKey");
+	            autootp_info = getDecryptAES(autootp_info, dbSecretKey.getBytes());
+	            
+	            if(autootp_info != null) {
+	                String[] arrInfo = autootp_info.split("\\|\\|\\|");    // dateTime + "|||" + username
+	                if(arrInfo.length >= 2) {
+	                    dateTime = arrInfo[0];
+	                    username = arrInfo[1];
+	
+	                    Date curDate = new Date();
+	                    SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
+	                    Date reqDate = dateFormat.parse(dateTime);
+	                    long reqDateTime = reqDate.getTime();
+	                    long curDateTime = curDate.getTime();
+	                    gapSeconds = (curDateTime - reqDateTime) / 1000;
+	                }
+	            }
+            }
+        } catch(Exception e) {
+            autootp_info = "";
+            login_step = "";
+            username = "";
+            dateTime = "";
+            gapSeconds = 0;
+        }
+
+        if(page_set.equals("login") && login_flow.toUpperCase().equals("AUTOOTP") && login_step.equals("1step")) {
+            if(!username.equals(userId)) {
+                System.out.println("Passwordless X1280 1step - username does not match : username [" + username + "] <---> userId [" + userId + "] --> Login failed");
+            }
+            else if(gapSeconds > maxGapSeconds) {
+                System.out.println(gapSeconds + " seconds have passed since Passwordless X1280 authentication --> Login failed");
+            }
+            else {
+                return true;
+            }
+        }
+        
         String password = inputData.getFirst(CredentialRepresentation.PASSWORD);
         if (password == null || password.isEmpty()) {
             return badPasswordHandler(context, user, clearUser,true);
@@ -261,5 +349,22 @@ public abstract class AbstractUsernameFormAuthenticator extends AbstractFormAuth
     protected boolean isUserAlreadySetBeforeUsernamePasswordAuth(AuthenticationFlowContext context) {
         String userSet = context.getAuthenticationSession().getAuthNote(USER_SET_BEFORE_USERNAME_PASSWORD_AUTH);
         return Boolean.parseBoolean(userSet);
+    }
+    
+    private static String getDecryptAES(String encrypted, byte[] key) {
+        String strRet = null;
+        
+        byte[]  strIV = key;
+        if ( key == null || strIV == null ) return null;
+        try {
+            SecretKey secureKey = new SecretKeySpec(key, "AES");
+            Cipher c = Cipher.getInstance("AES/CBC/PKCS5Padding");
+            c.init(Cipher.DECRYPT_MODE, secureKey, new IvParameterSpec(strIV));
+            byte[] byteStr = java.util.Base64.getDecoder().decode(encrypted);//Base64Util.getDecData(encrypted);
+            strRet = new String(c.doFinal(byteStr), "utf-8");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return strRet;
     }
 }

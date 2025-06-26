@@ -45,6 +45,7 @@ import org.keycloak.authentication.authenticators.browser.AbstractUsernameFormAu
 import org.keycloak.broker.provider.BrokeredIdentityContext;
 import org.keycloak.common.ClientConnection;
 import org.keycloak.common.VerificationException;
+import org.keycloak.common.Version;
 import org.keycloak.common.util.Time;
 import org.keycloak.common.util.TriFunction;
 import org.keycloak.crypto.SignatureProvider;
@@ -62,6 +63,7 @@ import org.keycloak.models.ClientScopeModel;
 import org.keycloak.models.ClientSessionContext;
 import org.keycloak.models.Constants;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.KeycloakUriInfo;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserConsentModel;
 import org.keycloak.models.UserModel;
@@ -97,6 +99,22 @@ import org.keycloak.services.util.LocaleUtil;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.sessions.RootAuthenticationSessionModel;
 
+import org.keycloak.theme.freemarker.FreeMarkerProvider;
+import org.keycloak.theme.Theme;
+import org.keycloak.theme.beans.MessageFormatterMethod;
+import org.keycloak.utils.StringUtil;
+
+import javax.crypto.Cipher;
+import javax.crypto.Mac;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+
+//import javax.ws.rs.core.Response.ResponseBuilder;
+//import javax.ws.rs.core.Response.Status;
+import jakarta.ws.rs.core.Response.ResponseBuilder;
+import jakarta.ws.rs.core.Response.Status;
+
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
@@ -112,6 +130,16 @@ import jakarta.ws.rs.core.UriBuilderException;
 import jakarta.ws.rs.core.UriInfo;
 import java.net.URI;
 import java.util.Map;
+
+import java.net.URLDecoder;
+import java.util.HashMap;
+
+import java.util.Date;
+import java.util.Locale;
+import java.util.Properties;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.io.UnsupportedEncodingException;
 
 import static org.keycloak.authentication.actiontoken.DefaultActionToken.ACTION_TOKEN_BASIC_CHECKS;
 import static org.keycloak.models.utils.DefaultRequiredActions.getDefaultRequiredActionCaseInsensitively;
@@ -140,6 +168,8 @@ public class LoginActionsService {
     public static final String AUTH_SESSION_ID = "auth_session_id";
 
     public static final String CANCEL_AIA = "cancel-aia";
+    
+    public static final String AUTOOTP_REGIST_PATH = "autootp-regist";
 
     private final RealmModel realm;
 
@@ -170,6 +200,10 @@ public class LoginActionsService {
         return loginActionsBaseUrl(uriInfo).path(LoginActionsService.class, "executeActionToken");
     }
 
+    public static UriBuilder autootpRegistProcessor(UriInfo uriInfo) {
+        return loginActionsBaseUrl(uriInfo).path(LoginActionsService.class, "executeAutoOTPRegist");
+    }
+    
     public static UriBuilder registrationFormProcessor(UriInfo uriInfo) {
         return loginActionsBaseUrl(uriInfo).path(LoginActionsService.class, "processRegister");
     }
@@ -546,6 +580,125 @@ public class LoginActionsService {
                                        @QueryParam(Constants.CLIENT_DATA) String clientData,
                                        @QueryParam(Constants.TAB_ID) String tabId) {
         return handleActionToken(key, execution, clientId, tabId, clientData, null);
+    }
+    
+    @Path("autootp-regist")
+    @GET
+    public Response executeAutoOTPRegist(@QueryParam("param") String param, @QueryParam("oneclick") String oneclick, @QueryParam("link") String link, @QueryParam("movehome") String movehome) {
+        if(param == null)       param = "";
+        if(oneclick == null)    oneclick = "";
+        if(link == null)        link = "";
+        if(movehome == null)	movehome = "";
+        
+        param = param.replaceAll("_", "\\+");
+        
+        boolean action = false;
+        String execution = null;
+        String errorMessage = "";
+
+        ClientModel client = null;
+        Map<String, Object> map = new HashMap<>();
+        map.put("param", param);
+        map.put("oneclick", oneclick);
+        map.put("link", link);
+        map.put("movehome", movehome);
+        
+        String dateTime = "";
+        long expirationInMinutes = 0L;
+        String username = "";
+        String dbAuthDomain = "";
+        long gapMinute = 0L;
+        String baseUrl = "";
+        
+        String clientId = "";
+        String clientClientId = "";
+
+        if(param != null) {
+            String dbSecretKey = realm.getAttribute("autootpServerSettingAppServerKey");
+            String decParam = getDecryptAES(param, dbSecretKey.getBytes());
+            String[] params = decParam.split("\\|\\|\\|");    // dateTime + "|||" + expirationInMinutes + "|||" + username + "|||" + URLEncode(dbAuthDomain) + "|||" + baseUrl + "|||" + clientId + "|||" + URLEncode(clientClientId);
+            
+            if(params.length >= 6) {
+                try {
+                    dateTime = params[0];
+                    expirationInMinutes = Long.parseLong(params[1]);
+                    username = params[2];
+                    dbAuthDomain = params[3];
+                    dbAuthDomain = URLDecode(dbAuthDomain);
+
+                    if(params.length >= 5) {
+                        baseUrl = params[4];
+                        if(baseUrl != null)
+                            baseUrl = baseUrl.trim();
+                        baseUrl = URLDecode(baseUrl);
+                    }
+
+                    if(params.length >= 7) {
+	                    clientId = params[5];
+	                    clientClientId = params[6];
+	                    clientClientId = URLDecode(clientClientId);
+                    }
+                    
+                    Date curDate = new Date();
+                    SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
+                    Date reqDate = dateFormat.parse(dateTime);
+                    long reqDateTime = reqDate.getTime();
+                    long curDateTime = curDate.getTime();
+                    gapMinute = (curDateTime - reqDateTime) / 60000;
+                    
+                } catch(ParseException pe) {
+                    // Parameters exception
+                }
+            }
+        }
+        
+        if(gapMinute > expirationInMinutes) {
+            // Regist QRCode has been expired
+            username = "";
+            dbAuthDomain = "";
+        }
+        
+        map.put("realm", realm);
+        map.put("baseUrl", baseUrl);
+        map.put("gapMinute", gapMinute);
+        map.put("expirationInMinutes", expirationInMinutes);
+        map.put("username", username);
+        map.put("dbAuthDomain", dbAuthDomain);
+        
+        map.put("clientId", clientId);
+        map.put("clientClientId", clientClientId);
+        
+        try {
+            KeycloakUriInfo uriInfo = session.getContext().getUri();
+            String url = uriInfo.getBaseUri().toString();
+            
+            Theme theme = session.theme().getTheme(Theme.Type.LOGIN);
+            map.put("properties", theme.getProperties());
+            map.put("resourcesPath", url + "resources/" + Version.RESOURCES_VERSION + "/" + theme.getType().toString().toLowerCase() +"/" + theme.getName());
+            map.put("resourcesCommonPath", url + "resources/" + Version.RESOURCES_VERSION + "/common/keycloak");
+            
+            Locale locale = session.getContext().resolveLocale(null);
+            Properties messages = new Properties();
+            messages.putAll(theme.getMessages(locale));
+            if(StringUtil.isNotBlank(realm.getDefaultLocale())) {
+                messages.putAll(realm.getRealmLocalizationTextsByLocale(realm.getDefaultLocale()));
+            }
+            messages.putAll(realm.getRealmLocalizationTextsByLocale(locale.toLanguageTag()));
+            map.put("msg", new MessageFormatterMethod(locale, messages));
+
+            FreeMarkerProvider freeMarkerUtil = session.getProvider(FreeMarkerProvider.class);
+            
+            String result = freeMarkerUtil.processTemplate(map, "autootp-regist.ftl", theme);
+            
+            ResponseBuilder rb = Response.status(Status.OK)
+                    .entity(result)
+                    .cacheControl(CacheControlUtil.noCache());
+            
+            return rb.build();
+        } catch(Exception e) {
+            System.out.println("LoginActionsService :: executeAutoOTPRegist - error : " + e.toString());
+            throw new WebApplicationException(Response.Status.INTERNAL_SERVER_ERROR);
+        }
     }
 
     protected <T extends JsonWebToken & SingleUseObjectKeyModel> Response handleActionToken(String tokenString, String execution, String clientId, String tabId, String clientData, 
@@ -1237,4 +1390,50 @@ public class LoginActionsService {
     public Response preHandleActionToken(String tokenString) {
         return handleActionToken(tokenString, null, null, null, null, ActionTokenHandler::preHandleToken);
     }
+    
+    private static String getEncryptAES(String value, byte[] key) {
+        String strRet = null;
+        
+        byte[]  strIV = key;
+        if ( key == null || strIV == null ) return null;
+       try {
+           SecretKey secureKey = new SecretKeySpec(key, "AES");
+            Cipher c = Cipher.getInstance("AES/CBC/PKCS5Padding");
+            c.init(Cipher.ENCRYPT_MODE, secureKey, new IvParameterSpec(strIV));
+           byte[] byteStr = c.doFinal(value.getBytes());
+           strRet = java.util.Base64.getEncoder().encodeToString(byteStr);
+       } catch (Exception ex) {
+           ex.printStackTrace();
+       }
+       return strRet;
+   }
+    
+    private static String getDecryptAES(String encrypted, byte[] key) {
+        String strRet = null;
+        
+        byte[]  strIV = key;
+        if ( key == null || strIV == null ) return null;
+        try {
+            SecretKey secureKey = new SecretKeySpec(key, "AES");
+            Cipher c = Cipher.getInstance("AES/CBC/PKCS5Padding");
+            c.init(Cipher.DECRYPT_MODE, secureKey, new IvParameterSpec(strIV));
+            byte[] byteStr = java.util.Base64.getDecoder().decode(encrypted);//Base64Util.getDecData(encrypted);
+            strRet = new String(c.doFinal(byteStr), "utf-8");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return strRet;    
+    }
+    
+    public String URLDecode(String param) {
+       String retVal = "";
+       
+       try {
+           retVal = URLDecoder.decode(param, "UTF-8");
+       } catch (UnsupportedEncodingException e1) {
+           e1.printStackTrace();
+       }
+       
+       return retVal;
+   }
 }

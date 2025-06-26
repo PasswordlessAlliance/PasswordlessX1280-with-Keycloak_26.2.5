@@ -49,6 +49,14 @@ public class ClientAuthenticationFlow implements AuthenticationFlow {
     public ClientAuthenticationFlow(AuthenticationProcessor processor, AuthenticationFlowModel flow) {
         this.processor = processor;
         this.flow = flow;
+        
+        String clientId = null;
+    	String id = null;
+    	ClientModel client = processor.getClient();
+    	if(client != null) {
+	    	clientId = client.getClientId();
+	    	id = client.getId();
+    	}
     }
 
     @Override

@@ -32,6 +32,8 @@ import org.keycloak.protocol.oidc.endpoints.LoginStatusIframeEndpoint;
 import org.keycloak.protocol.oidc.endpoints.LogoutEndpoint;
 import org.keycloak.protocol.oidc.endpoints.ThirdPartyCookiesIframeEndpoint;
 import org.keycloak.protocol.oidc.endpoints.TokenEndpoint;
+import org.keycloak.protocol.oidc.endpoints.AutoOTPEndpoint;
+import org.keycloak.protocol.oidc.endpoints.AutootpPolicyEndpoint;
 import org.keycloak.protocol.oidc.endpoints.TokenRevocationEndpoint;
 import org.keycloak.protocol.oidc.endpoints.UserInfoEndpoint;
 import org.keycloak.protocol.oidc.ext.OIDCExtProvider;
@@ -176,6 +178,25 @@ public class OIDCLoginProtocolService {
     @Path("token")
     public Object token() {
         return new TokenEndpoint(session, tokenManager, event);
+    }
+    
+    /**
+     * Autootp-policy-api endpoint
+     */
+    @Path("autootp-policy-api")
+    public Object autootpPolicyApi() {
+    	
+        return new AutootpPolicyEndpoint(session, event);
+    }
+    
+    @Path("autootp")
+    public Object autootp() {
+        return new AutoOTPEndpoint(session, event);
+    }
+    
+    @Path("autootp_email")
+    public Object autootpEmail() {
+        return new AutoOTPEndpoint(session, event);
     }
 
     @Path("login-status-iframe.html")

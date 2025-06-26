@@ -126,6 +126,9 @@ import java.util.stream.Stream;
 import static org.keycloak.models.UserSessionModel.CORRESPONDING_SESSION_ID;
 import static org.keycloak.protocol.oidc.grants.device.DeviceGrantType.isOAuth2DeviceVerificationFlow;
 
+import org.keycloak.models.AuthenticationFlowModel;
+import org.keycloak.authentication.authenticators.autootp.AutoOTPRequiredAction;
+
 /**
  * Stateless object that manages authentication
  *
@@ -998,7 +1001,29 @@ public class AuthenticationManager {
                                                   HttpRequest request, UriInfo uriInfo, EventBuilder event,
                                                   Set<String> ignoredActions) {
         Response requiredAction = actionRequired(session, authSession, request, event, ignoredActions);
-        if (requiredAction != null) return requiredAction;
+        if (requiredAction != null) {
+            RealmModel realm = authSession.getRealm();
+            UserModel user = authSession.getAuthenticatedUser();
+            if(realm != null && user != null) {
+	            String userName = user.getUsername();
+	            String userId = user.getId();
+	            
+	            AuthenticationFlowModel flowModel = realm.getBrowserFlow();
+	            String dbBrowserFlowAlias = flowModel.getAlias();
+	            if(dbBrowserFlowAlias == null)
+	                dbBrowserFlowAlias = "";
+	            
+	            if(dbBrowserFlowAlias.toUpperCase().indexOf("AUTOOTP") > -1 || dbBrowserFlowAlias.toUpperCase().indexOf("PASSWORDLESS") > -1 || dbBrowserFlowAlias.toUpperCase().indexOf("X1280") > -1)
+	                dbBrowserFlowAlias = "AUTOOTP";
+	            
+	            if(dbBrowserFlowAlias.equals("AUTOOTP")) {
+	            	// Remove "Required user actions" - AutoOTPRequiredAction.PROVIDER_ID
+	            	user.removeRequiredAction(AutoOTPRequiredAction.PROVIDER_ID);
+	            }
+            }
+
+        	return requiredAction;
+        }
         return finishedRequiredActions(session, authSession, null, clientConnection, request, uriInfo, event);
 
     }
