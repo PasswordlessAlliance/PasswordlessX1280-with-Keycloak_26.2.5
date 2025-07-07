@@ -692,6 +692,7 @@ public class LoginActionsService {
             
             ResponseBuilder rb = Response.status(Status.OK)
                     .entity(result)
+                    .type(MediaType.TEXT_HTML)
                     .cacheControl(CacheControlUtil.noCache());
             
             return rb.build();
